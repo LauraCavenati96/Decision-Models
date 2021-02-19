@@ -1,0 +1,292 @@
+---
+title: "Assignment 3 - Nonlinear optimization"
+author: "Laura Cavenati"
+date: "24 maggio 2020"
+output:
+  pdf_document: default
+---
+
+
+# Problem 1  
+We wish to find at least one zero of the function $f(x)=−x^3+4x^2−2$.  
+It is often valuable to plot the function to find an interval containing the root.
+```{r}
+f<- function(x) {
+  -x^3+4*x^2-2
+}
+curve(f, xlim=c(-2.5,5) ,ylim=c(-10,10), col='red', lwd=1.5, lty=2)
+abline(h=0, col='blue')
+```
+  
+The roots appear to lie close to -1 ,1, 4 so we will use the intervals [-2, 0],[0, 2],[3, 5].  
+The bisection method is a root-finding method that applies to any continuous functions for which one knows two values with opposite signs.
+The function $f(x)$ is real, continuous, and changes sign in each interval:
+$f(-2)f(0)<0 \quad f(0)f(2)<0 \quad f(3)f(5)<0$  
+So at least one root exists in each interval and we can use bisection method to find them.
+
+```{r}
+library(NLRoot)
+#The NLRoot package function for the bisection method is BFfzero()
+BFfzero(f, -2, 0)
+BFfzero(f, 0, 2)
+BFfzero(f, 3, 5)
+```
+The output of the function shows the roots are located at $x=-0.6554413, x=0.7892426, x=3.866196$.  
+We can also write a function that implements the bisection method using the iteration steps. We reuse the code provided in the exercise session modified so that it prints the iteration steps of the bisection method.
+```{r}
+bisection <- function(f, a, b, n = 1000, tol = 1e-7) {
+  # If the signs of the function at the evaluated points, a and b are the same
+  # stop the function and return message.
+  if (sign(f(a) == sign(f(b)))) {
+    stop('signs of f(a) and f(b) must differ')
+  }
+  x_l<-x_u<-iteration_number<-x_m<-tolerance<-c()
+  for (i in 1:n) {
+    iteration_number[i]<-i
+    x_l[i]<-a
+    x_u[i]<-b
+    x_m[i]<-(a + b) / 2
+    tolerance[i]<-((b - a) / 2)
+    c <- (a + b) / 2 # Calculate midpoint
+    # If the function equals 0 at the midpoint or the midpoint is below
+    #the desired tolerance, stop the function and return the root.
+    if ((f(c) == 0) || ((b - a) / 2) < tol) {
+      df <- data.frame(iteration=iteration_number,
+                       x_l=x_l,
+                       x_u=x_u,
+                       x_m=x_m,
+                       tolerance=tolerance)
+      return(df)
+    }
+    # If another iteration is required,
+    # check the signs of the function at the points c and a and reassign
+    # a or b accordingly as the midpoint to be used in the next iteration.
+    ifelse(sign(f(c)) == sign(f(a)),
+           a <- c,
+           b <- c)
+  }
+  #If the max number of iterations is reached and no root has been found,
+  # return message and end function.
+  print('Too many iterations')
+}
+```
+Now we find the roots of the equation $−x^3+4x^2−2=0$ using the same intervals with the new function.
+```{r}
+library(knitr)
+kable(bisection(f, -2, 0))
+kable(bisection(f, 0, 2))
+kable(bisection(f, 3, 5))
+``` 
+  
+The output of the function shows the roots are located at $x =-0.6554424, x=0.7892441, x=3.866198$.  
+The function matches the output of the BFfzero function to the fifth decimal place. If we wanted a better approximation, we should reduce the tolerance.     
+
+ 
+# Problem 2
+Consider the following minimization problem:  
+$min: f(x_1, x_2)=2x_1^2+x_1x_2+2(x_2-3)^2$  
+It is often valuable to plot the function to visualize how the equation behaves and where the minimum may be located.
+```{r}
+f <- function(x, y){
+  f = matrix(nrow= length(x), ncol= length(y))
+  for (i in seq(1, length(x), by = 1)) {
+    for (j in seq(1, length(y), by = 1)) {
+      f[i,j] = 2*x[i]*x[i]+x[i]*y[j]+2*(y[j]-3)*(y[j]-3)
+    }
+  }
+  f
+}
+x_1<-seq(-5,4, by=0.5)
+x_2<-seq(-2,7, by=0.5)
+x_3<-f(x_1, x_2)
+graf<-persp(x_1, x_2, x_3, phi=30,theta=60,d=10,col="green",ticktype="detailed")
+```
+
+Now we illustrate the gradient descent on a series of level sets.  
+```{r}
+x_1<-seq(-6/5,-2/5, by=0.005)
+x_2<-seq(14/5,18/5, by=0.005)
+x_3<-f(x_1, x_2)
+fig<-contour(x_1, x_2, x_3,col=heat.colors(12), nlevels=12)
+```
+  
+The curves are the contour lines, that is, the regions on which the value of the funtion is constant. The minimum appear to lie close to $x_1=-0.8$ and $x_2=3.2$.  
+
+1. Apply an iteration of the gradient method by performing the line search in an exact way, starting from the point $A=(−1,4)$.  
+\[
+\nabla f(\mathbf{x})=  
+\begin{bmatrix}
+\frac{\partial f}{\partial x_1} \\
+\frac{\partial f}{\partial x_2}
+\end{bmatrix} 
+=
+\begin{bmatrix}
+4x_1+x_2 \\
+x_1+4(x_2-3)
+\end{bmatrix} \\
+\mathbf{x_0}=
+\begin{bmatrix}
+-1\\ 4\\
+\end{bmatrix}
+\qquad
+\nabla f(\mathbf{x_0})=  
+\begin{bmatrix}
+0 \\ 3\\
+\end{bmatrix}
+\]  
+Let’s solve the problem with the Steepest Descent Method:  
+\[
+\mathbf{d}_0=-\nabla f(\mathbf{x_0})= \begin{bmatrix}
+0 \\ -3 \\
+\end{bmatrix}\\
+\mathbf{x_1}=
+\begin{bmatrix}
+-1 \\ 4\\
+\end{bmatrix}
++\alpha_0
+\begin{bmatrix}
+0 \\ -3\\
+\end{bmatrix}=
+\begin{bmatrix}
+-1\\ 4-3\alpha_0\\
+\end{bmatrix}
+\]
+Now, we need to determine $\alpha_0$:  
+\[f(-1, 4-3\alpha_0)=
+2+3\alpha_0-4+2(1-3\alpha_0)^2=18\alpha_0^2-9\alpha_0\\
+f'(-1, 4-3\alpha_0)=36\alpha_0-9=0\\
+\alpha_0=1/4\\
+\mathbf{x_1}=
+\begin{bmatrix}
+-1\\
+ 13/4\
+\end{bmatrix}
+\]
+The stop criteria is not satisfied, then we should find the next point.  
+2. Apply an iteration of Newton’s method from point A.  
+\[
+\nabla f(x_1, x_2) =  
+\begin{bmatrix}
+\frac{\partial f}{\partial x_1} \\
+\frac{\partial f}{\partial x_2}
+\end{bmatrix} 
+=
+\begin{bmatrix}
+4x_1+x_2 \\
+x_1+4(x_2-3)
+\end{bmatrix} 
+\\
+H = 
+\begin{bmatrix}
+4 & 1 \\
+1 & 4 \\
+\end{bmatrix}   
+\qquad
+H^{-1} = \frac{1}{15}
+\begin{bmatrix}
+4 & -1 \\
+-1 & 4 \\
+\end{bmatrix}
+\\ 
+\mathbf{x_0}=\mathbf{x_A}=
+\begin{bmatrix}
+-1 \\ 4 \\
+\end{bmatrix}
+\qquad
+\nabla f(\mathbf{x_0})=
+\begin{bmatrix}
+0\\3\\
+\end{bmatrix}\\
+\mathbf{x_1}=\mathbf{x_0}-H(\mathbf{x_0})^{-1}\nabla f(\mathbf{x_0})=
+\begin{bmatrix}
+-1 \\ 4 \\
+\end{bmatrix}
+-\frac{1}{15}
+\begin{bmatrix}
+-3 \\ 12 \\
+\end{bmatrix}
+=\frac{1}{5}
+\begin{bmatrix}
+-4 \\ 16 \\
+\end{bmatrix}\\  
+\nabla f(\mathbf{x_1})=\begin{bmatrix}
+0 \\ 0\\
+\end{bmatrix}
+\]  
+The function is a twice countinuously differentiable function.
+The point found is the minimum of function $f$ because for a twice countinuously differentiable function $\mathbf{x^*}$ is a minimum 
+if and only if 
+\[
+\frac{\partial f}{\partial x_i} \biggl|_{x_i^*}=0\\
+\frac{\partial^2 f}{\partial x_i^2} \biggl|_{x_i^*}>0
+\]  
+In our case:
+\[
+\nabla f(\mathbf{x_1})=\begin{bmatrix}
+0 \\ 0\\
+\end{bmatrix}
+\qquad
+H = 
+\begin{bmatrix}
+4 & 1 \\
+1 & 4 \\
+\end{bmatrix}
+\]  
+The conditions are satisfied so the point found is a minimum.
+The function is convex (H is definite positive) so the minimum is also a global minimum.  
+
+3. Because Newton’s Method uses the 2nd derivative to obtain the new iterate point, it models quadratic functions exactly and can optimize a quadratic function in one iteration.
+
+
+
+# Problem 3
+Use the Simulated annealing algorithm to find the global minimum of the following function:  
+\[
+f(x) = 34 e^{-\frac{1}{2} \big(\frac{x-88}{2} \big)^2}+ \bigg( \frac{x}{10} -2sin \bigg(\frac{x}{10}\bigg) \bigg)^2
+\] 
+It is often valuable to plot the function to visualize how the equation behaves and where the minimum may be located.
+```{r}
+f<-function(x){
+  34*exp(-1/2*((x-88)/2)^2)+(x/10-2*sin(x/10))^2
+}
+curve(f, ylim =c(0, 200),xlim =c(-180, 180), col='red', lwd=1.5, lty=2)
+abline(h=0, col='blue')
+curve(f, ylim =c(0, 2),xlim =c(-25, 25), col='red', lwd=1.5, lty=2)
+abline(h=0, col='blue')
+```
+  
+As seen in the chart, $f(x)$ have several local optima.  
+If we zoom the function close to 0:
+```{r}
+curve(f, ylim =c(0, 0.0002),xlim =c(-25, 25), col='red', lwd=1.5, lty=2)
+abline(h=0, col='blue')
+f(0)
+f(18.95494)
+```
+  
+So the minimum in $x=0$ is the global minimum.
+
+Because the function have several local optima, restarting and a careful selection of the algorithm
+parameters may be necessary.
+The optimization package function for the Simulated Annealing method is optim_sa. 
+The initial temperature is set 1000, the minimun temperature is set 1 and the maximum number of iterations of the inner loop is 100000.
+The function that determines the variation of the function variables for the next iteration is a uniform distributed random number with relative range 1. 
+We choose the initial point from -100 to 100 (however it is always better to start from a good initial solution).
+```{r, warning=FALSE}
+library(optimization)
+for (init_value in seq(-100,100, 10)){
+  res <-optim_sa(f, init_value, maximization = FALSE, trace = FALSE,
+         lower=-Inf, upper=Inf, control = list(t0 = 1000, nlimit = 100000, t_min=1))
+  cat("solution=", res$par,"\n")
+}
+```
+  
+The method always converges to the global minimum but this function is very slow due to the maximum number of iterations of the inner loop that is very high. If we reduce it, than the method doesn't always converge to the global minimum.
+```{r}
+library(optimization)
+for (init_value in seq(-100,100, 10)){
+  sol <-optim_sa(f, init_value, maximization = FALSE, trace = FALSE,
+         lower=-Inf, upper=Inf, control = list(t0 = 1000, nlimit = 1000, t_min=10))
+  cat("solution=", sol$par,"\n")
+}
+```

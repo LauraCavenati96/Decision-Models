@@ -1,0 +1,162 @@
+---
+title: "Assignment 2"
+author: 'Cavenati Laura $\hspace{0.5cm}$  matricola: 864000'
+date: "29 aprile 2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+# Problema 1
+Consideriamo il seguente ILP:  
+max $9x_1 + 5x_2 + 6x_3 + 4x_4$  
+s.t.  
+  $6x_1 + 3x_2 + 5x_3 + 2x_4 \leq 10$  
+  $x_3 + x_4 \leq 1$  
+  $-x_1 + x_3 \leq 0$  
+  $-x_2 + x_4 \leq 0$  
+  $x_1, x_2, x_3, x_4 \in \{ 0, 1 \}$  
+
+
+1) I nodi che saranno visitati dall'algoritmo BB, in ordine, sono:  
+$P_0,P_1,P_2,P_7,P_8,P_9,P_{10},P_{11},P_{12}$  
+Definiamo come upper bound il valore di $z$ per la soluzione rilassata associata al nodo e come lower bound il valore di $z$ per la soluzione rilassata arrotondata per difetto (in questo caso si verifica che siano rispettati i vincoli). La soluzione intera ottima sara' compresa entro questi limiti.  
+Nel nostro caso abbiamo:  
+$P_0: UB=\frac{5}{6}x_1+x_2+0x_3+x_4=16.5 \hspace{0.5cm} LB=0x_1+x_2+0x_3+x_4=9$  
+$P_1: UB=16.2 \hspace{0.5cm} LB=9$  
+$P_2: UB=9 \hspace{0.5cm} LB=9$  
+$P_7: UB=16 \hspace{0.5cm} LB=14$  
+$P_8: unfeasible$  
+$P_9: UB=16 \hspace{0.5cm} LB=14$  
+$P_{10}: unfeasible$  
+$P_{11}: UB=14 \hspace{0.5cm} LB=14$  
+$P_{12}: UB=13.8 \hspace{0.5cm} LB=9$  
+Per i lower bound sono rispettati i vincoli. Alternativamente si potrebbe definire il lower bound come la miglior soluzione trovata fino a quel momento dall'algoritmo in esecuzione.   
+La soluzione ottima e' quella associata al nodo 11, $x^*=(1,1,0,0)$, a cui e' associata una funzione obiettivo pari a 14.
+
+
+2) Risoluzione del problema in R  
+La libreria che useremo e':
+```{r, message=FALSE}
+library(lpSolve)
+```
+Definiamo la funzione obiettivo e la matrice dei vincoli:
+```{r}
+obj.fun<-c(9,5,6,4)
+constr<-matrix (c(6,3,5,2,
+                  0,0,1,1,
+                  -1,0,0,1,
+                  0,-1,0,1),
+                ncol=4 , byrow =TRUE)
+constr.dir<-c("<=","<=","<=","<=")
+rhs<-c(10,1,0,0)
+```
+Creiamo il modello lineare intero con le quattro variabili, la funzione obiettivo e i vincoli:
+```{r}
+model<-lp("max", obj.fun, constr, constr.dir, rhs, compute.sens=TRUE, binary.vec=1:4)
+```
+Visualizziamo i risultati:
+```{r}
+model$solution
+model$objval
+```
+La soluzione e la funzione obiettivo, come ci aspettavamo, assumono gli stessi valori trovati al punto 1.
+
+# Problema 2
+SunNet e' un provider di servizi Internet residenziale nella zona centrale della Florida. Attualmente, la compagnia gestisce una struttura centralizzata che tutti i suoi clienti usano per l'accesso a Internet.
+Per migliorare il servizio, la societa' prevede di aprire tre uffici satelliti nelle citta' di Pine Hills, Eustis e Sanford. La societa' ha identificato cinque diverse regioni che saranno servite da questi tre uffici.
+SunNet desidera determinare il numero di clienti da ciascuna regione da assegnare a ciascun centro servizi per ridurre al minimo il costo totale.  
+
+## Network flow model che rappresenta il problema
+I nodi 1,2,3,4,5 indicano le rispettive regioni che saranno servite. Gli archi che collegano i vari nodi hanno una lunghezza proporzionale al costo mensile per cliente per portare il servizio da ogni ufficio a ogni regione.
+![](grafico11.jpg) 
+  
+## Definizione delle variabili
+
+$X_{16}=$ # di clienti della regione 1 (nodo 1) assegnati all'ufficio della citta' di Pine Hills (nodo 6)  
+$X_{17}=$ # di clienti della regione 1 (nodo 1) assegnati all'ufficio della citta' di Eustis (nodo 7)   
+$X_{26}=$ # di clienti della regione 2 (nodo 2) assegnati all'ufficio della citta' di Pine Hills (nodo 6)  
+$X_{27}=$ # di clienti della regione 2 (nodo 2) assegnati all'ufficio della citta' di Eustis (nodo 7)  
+$X_{36}=$ # di clienti della regione 3 (nodo 3) assegnati all'ufficio della citta' di Pine Hills (nodo 6)  
+$X_{37}=$ # di clienti della regione 3 (nodo 3) assegnati all'ufficio della citta' di Eustis (nodo 7)  
+$X_{38}=$ # di clienti della regione 3 (nodo 3) assegnati all'ufficio della citta' di Sanford (nodo 8)  
+$X_{47}=$ # di clienti della regione 4 (nodo 4) assegnati all'ufficio della citta' di Eustis (nodo 7)  
+$X_{48}=$ # di clienti della regione 4 (nodo 4) assegnati all'ufficio della citta' di Sanford (nodo 8)  
+$X_{57}=$ # di clienti della regione 5 (nodo 5) assegnati all'ufficio della citta' di Eustis (nodo 7)  
+$X_{58}=$ # di clienti della regione 5 (nodo 5) assegnati all'ufficio della citta' di Sanford (nodo 8)  
+
+## Definizione della funzione obiettivo
+In questo caso noi vogliamo minimizzare il costo P, che e' funzione delle 11 variabili definite e del costo mensile medio per cliente per portare il servizio a ogni regione da ogni ufficio.  
+$P= 6.50*X_{16}+7.50*X_{17}+7.00*X_{26}+8.00*X_{27}+8.25*X_{36}+7.25*X_{37}+6.75*X_{38}$  
+  $+7.75*X_{47}+7.00*X_{48}+7.50*X_{57}+6.75*X_{58}$
+
+
+## Definizione dei vincoli
+* La somma dei clienti relativi a una certa regione e facenti riferimento a diversi centri di servizio deve essere pari al numero di clienti totali della regione:   
+  
+    $X_{16}+X_{17}=30000$  
+    $X_{26}+X_{27}=40000$  
+    $X_{36}+X_{37}+X_{38}=25000$  
+    $X_{47}+X_{48}=35000$  
+    $X_{57}+X_{58}=33000$  
+
+* La somma dei clienti per ogni centro di servizio non deve superare la capacita' dei centri di servizio:  
+
+    $X_{16}+X_{26}+X_{36}\leq 60000$  
+    $X_{17}+X_{27}+X_{37}+X_{47}+X_{57}\leq 70000$  
+    $X_{38}+X_{48}+X_{58}\leq 40000$  
+
+* Le variabili devono essere intere non negative:  
+$X_{ij}\geq 0$,  $X_{ij}\in \mathbb{N}$
+
+La somma dei clienti di tutte le regioni, pari a 163000, e' infiore alla capacita' totale dei tre centri, pari a 170000. Cio' vuol dire che i centri di servizio potrebbero servire altri 7000 clienti. 
+
+
+## Risoluzione del problema in R
+Le librerie che useremo sono:
+```{r, message=FALSE}
+library(lpSolveAPI)
+library(lpSolve)
+```
+Definiamo la funzione obiettivo e la matrice dei vincoli:
+```{r}
+obj.fun<-c(6.5,7.5,7,8,8.25,7.25,6.75,7.75,7,7.5,6.75)
+constr<-matrix (c(1,1,0,0,0,0,0,0,0,0,0,
+                  0,0,1,1,0,0,0,0,0,0,0,
+                  0,0,0,0,1,1,1,0,0,0,0,
+                  0,0,0,0,0,0,0,1,1,0,0,
+                  0,0,0,0,0,0,0,0,0,1,1,
+                  1,0,1,0,1,0,0,0,0,0,0,
+                  0,1,0,1,0,1,0,1,0,1,0,
+                  0,0,0,0,0,0,1,0,1,0,1),
+                  ncol=11, byrow =TRUE)
+constr.dir<-c("=","=","=","=","=","<=","<=","<=")
+rhs<-c(30000,40000,25000,35000,33000,60000,70000,40000)
+```
+Creiamo il modello lineare intero con le undici variabili, la funzione obiettivo e i vincoli definiti precedentemente:
+```{r}
+model<-lp("min", obj.fun, constr, constr.dir, rhs, compute.sens=TRUE,int.vec=1:11)
+```
+Risolviamo il problema e visualizziamo i risultati:
+```{r}
+model$solution
+model$objval
+```
+Il costo totale sara' $1155000.  
+La soluzione ottima prevede che:  
+$X_{16}=20000, X_{17}=10000$  
+$X_{26}=40000, X_{26}=0$  
+$X_{36}=0, X_{37}=25000, X_{38}=0$  
+$X_{47}=0, X_{48}=35000$  
+$X_{57}=28000, X_{58}=5000$  
+Cio' vuol dire per esempio che 20000 clienti della regione 1 saranno assegnati al centro di servizio di Pine Hills e i restanti 10000 al centro di Eustin. Quelli della regione 2 invece saranno assegnati tutti al centro di Pine Hills (infatti portare il servizio da Pine Hills alla regione 2 costa $1.00 meno che da Eustis). La seguente tabella rappresenta piu' chiaramente i risultati:  
+```{r, message=FALSE, echo=FALSE}
+library(knitr)
+edges= data.frame(Regione=c(1,1,2,2,3,3,3,4,4,5,5),
+                  Ufficio=c("Pine Hills","Eustis","Pine Hills","Eustis","Pine Hills","Eustis","Sanford","Eustis","Sanford","Eustis","Sanford"),
+                  costo=c(6.5,7.5,7,8,8.25,7.25,6.75,7.75,7,7.5,6.75),
+                  model$solution)
+
+kable(edges)
+```  
+  
+Facendo la somma dei clienti serviti da ogni centro di servizio si vede un avanzo di 7000 clienti per la stazione di Sanford. 

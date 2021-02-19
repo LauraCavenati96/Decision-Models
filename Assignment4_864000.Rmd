@@ -1,0 +1,132 @@
+---
+title: 'Asignment 4: The phone company'
+author: "Laura Cavenati"
+date: "04 giugno 2020"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+# The phone company
+
+## The decision tree
+
+The first thing to do is to create a yaml file containing the tree description from the data of the problem. For this case study this file has been prepared and its name is tree-DM.yaml.
+```{r, message=FALSE}
+library(yaml)
+library(radiant)
+library(radiant.model)
+
+treeDM = yaml.load_file(input = "C:\\Users\\Laura\\Google Drive\\MAGISTRALE\\1 anno\\2 SEMESTRE\\decision model\\Assignment\\Assignment 4\\tree-DM.yaml")
+```
+Let’s use the Radiant library to draw and visualize the tree for this decision.
+```{r}
+resultTreeDM =dtree(yl = treeDM, opt="min")
+summary(resultTreeDM, input = FALSE, output = TRUE)
+
+plot(resultTreeDM, final = FALSE)
+```
+  
+CaseA: DM Systems decide to buy all of the PAL chips from the Italian chip manufacturer, IM Chips.  
+CaseB: DM Systems decide to buy 250,000 PAL chips from the IM Chips and 250,000 PAL chips from the KR Chips.   
+CaseC: DM Systems decide to buy all of the PAL chips from the Korean chip manufacturer, KR Electronics.  
+If the antidumping tax will be imposed, than the tax will be (case B1-C1) 50%, (case B2-C2) 100%, or (case B3-C3) 200% of the sale price for each PAL chip.
+
+## Expected value
+Let’s use the Radiant library to calculate the Expected Value.
+```{r}
+plot(resultTreeDM, final = TRUE)
+```
+The objective is minimize the costs.
+Using expected value as the decision criterion, the DM’s preferred ordering alternative for the PAL chips is to buy all of the PAL chips from the KR Electronics.
+
+
+## Sensitivity analysis
+To realize the sensitivity analysis we use the sensitivity function provided by Randiant.
+In the particular case considered we want to calculate how the EVs changes with respect to changes in the probability the antidumping tax will be imposed. We change this probability from 0 to 1.
+
+```{r}
+sensitivity(
+resultTreeDM,
+vars = "p_tax_imposed 0 1 0.1;",
+decs = c("caseA", "caseB", "caseC"),
+custom = TRUE)+ labs(y="cost")
+```
+  
+We can see that at a certain point we reach the breakeven, and after that the caseA decision becomes the one with the highest expected value.  
+This makes sense because if the probability that the antidumping tax will be imposed is high, the preferred ordering alternative is the one no subject to an antidumping tax.
+
+## Utility Function and Certainty Equivalent
+Assume that all the information in that exercise still holds, and that DM has an exponential utility function with a risk tolerance of $750,000.
+
+We reuse the code provided in the exercise session with some changes.
+An helper function CalcUtilityFunction, created specifically for the case study of the DM Systems, is provided below. We can easily see that it is made up of three parts and each one of them calculates the expected value for a branch of the tree apllying on the costs the exponential utility function. In situations involving costs, where less of an evaluation measure is preferred to more, the exponential utility function has the form $u(x) = 1-e^{x/R}$, the certainty equivalent is equal to $CE = R*ln(1-EU)$.
+```{r}
+utilityFunctionExp <- function(X, R) {
+res <- 1- exp(X/R)
+return(res)
+} 
+
+CertEquivalent = function(EU, R){
+CE = R*ln(1-EU)
+return(CE)
+}
+
+CalcExpectedUtilityFunction <- function(resultTreeDM, R){
+  
+UFA = utilityFunctionExp(resultTreeDM$payoff[2], R)
+names(UFA)<-"caseA"
+
+UFB = utilityFunctionExp(resultTreeDM$payoff[5:8], R)
+UFB_tax_imposed = 1/3*UFB[1]+1/3*UFB[2]+ 1/3*UFB[3]
+UFB_tax_not_imposed = UFB[4]
+UFB_tot = resultTreeDM$vars[23]*UFB_tax_imposed+resultTreeDM$vars[24]*UFB_tax_not_imposed
+names(UFB_tot)<-"caseB"
+
+UFC = utilityFunctionExp(resultTreeDM$payoff[11:14], R)
+UFC_tax_imposed = 1/3*UFC[1]+1/3*UFC[2]+ 1/3*UFC[3]
+UFC_tax_not_imposed = UFC[4]
+UFC_tot = resultTreeDM$vars[23]*UFC_tax_imposed+resultTreeDM$vars[24]*UFC_tax_not_imposed
+UFC_tot
+names(UFC_tot)<-"caseC"
+
+return (c(UFA, UFB_tot, UFC_tot))
+}
+
+CalcBranchCE <- function(resultTreeDM, R){
+CE_vett = CertEquivalent(CalcExpectedUtilityFunction(resultTreeDM, R), R)
+return(CE_vett)
+}
+
+R=750000
+vRes = CalcBranchCE(resultTreeDM, R)
+vRes
+```
+
+Using this utility function as the decision criterion, the DM’s preferred ordering alternative for the PAL chips is to buy all of the PAL chips from the IM Chips.  
+As expected the certainty equivalent cost is more than the expected value, so the decision maker is risk averse, that is he leans toward less risky resolutions.
+
+## KR revises the offer
+```{r}
+treeDMrevises = yaml.load_file(input = "C:\\Users\\Laura\\Google Drive\\MAGISTRALE\\1 anno\\2 SEMESTRE\\decision model\\Assignment\\Assignment 4\\tree-DM - KR revises the offer.yaml")
+resultTreeDMrevises =dtree(yl = treeDMrevises, opt="min")
+#summary(resultTreeDMrevises, input = FALSE, output = TRUE)
+
+plot(resultTreeDMrevises, final = TRUE)
+```
+c = cancel the order  
+nc = not cancel the order  
+Assuming that all other information is still valid, the  DM’s preferred alternative for the initial order of PAL chips is to buy all of the PAL chips from the KR Electronics. If the antidumping tax is imposed, in the case of 200% tax is imposed, then DM will cancel its entire order, otherwise he will not cancel the order.
+
+## Value of Information
+Now we determine the maximum amount that DM should pay for information about whether the antidumping tax will be imposed.  
+Note that we determine the amount for information about whether the antidumping tax will be imposed, not for information about whether the tax will be 50%, 100%, or 200% of the sale price. (In this case the maximum amount would be greater).
+```{r}
+treeDM_PI = yaml.load_file(input = "C:\\Users\\Laura\\Google Drive\\MAGISTRALE\\1 anno\\2 SEMESTRE\\decision model\\Assignment\\Assignment 4\\tree-DM - PI.yaml")
+resultTreeDM_PI =dtree(yl = treeDM_PI, opt = "min")
+
+plot(resultTreeDM_PI, final = TRUE)
+```
+From the analysis of the expected value for this branch of the decision tree, it is possible to deduce that the
+expected cost in the case of perfect information would be $1200000.
+We have seen that the expected value of the cost in the uncertain case is $1275000, so we can say that the perfect information in this scenario can not be worth more than 75000 (=1275000-1200000) dollars and, therefore, it would make no sense to buy such information for a higher price.
